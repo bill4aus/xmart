@@ -1,3 +1,0 @@
-<template>
-  <WishList />
-</template>

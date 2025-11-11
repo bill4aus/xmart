@@ -1,6 +1,0 @@
-fragment Image on MediaItem {
-  sourceUrl
-  altText
-  title
-  databaseId
-}

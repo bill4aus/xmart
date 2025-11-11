@@ -1,6 +1,0 @@
-fragment LoginClient on LoginClient {
-  name
-  provider
-  isEnabled
-  authorizationUrl
-}

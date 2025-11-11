@@ -1,9 +1,0 @@
-query getStripePaymentIntent($stripePaymentMethod: StripePaymentMethodEnum!) {
-  stripePaymentIntent(stripePaymentMethod: $stripePaymentMethod) {
-    amount
-    clientSecret
-    error
-    id
-    currency
-  }
-}

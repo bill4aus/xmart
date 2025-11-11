@@ -1,7 +1,0 @@
-mutation ChangeShippingMethod($shippingMethods: [String] = "") {
-  updateShippingMethod(input: { shippingMethods: $shippingMethods }) {
-    cart {
-      ...Cart
-    }
-  }
-}

@@ -1,9 +1,0 @@
-query getOrders {
-  customer {
-    orders(first: 100) {
-      nodes {
-        ...OrderFragment
-      }
-    }
-  }
-}
