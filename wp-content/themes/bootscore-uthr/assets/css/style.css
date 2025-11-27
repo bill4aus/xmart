@@ -1024,22 +1024,22 @@ input:-ms-input-placeholder, textarea:-ms-input-placeholder {
 }
 @media only screen and (min-width: 1200px) and (max-width: 1600px) {
   .main_header {
-    padding: 35px 0;
+    padding: 5px 0;
   }
 }
 @media only screen and (min-width: 992px) and (max-width: 1199px) {
   .main_header {
-    padding: 30px 0;
+    padding: 2px 0;
   }
 }
 @media only screen and (min-width: 768px) and (max-width: 991px) {
   .main_header {
-    padding: 22px 0;
+    padding: 2px 0;
   }
 }
 @media only screen and (max-width: 767px) {
   .main_header {
-    padding: 20px 0;
+    padding: 2px 0;
   }
 }
 
@@ -1120,6 +1120,35 @@ input:-ms-input-placeholder, textarea:-ms-input-placeholder {
 }
 .main_menu nav > ul > li ul.sub_menu li a:hover {
   color: #6a7964;
+}
+
+/* 让窄屏设备也能显示主菜单 */
+@media only screen and (max-width: 991px) {
+  .header_container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
+  .main_menu {
+    display: block !important;
+    width: 100%;
+    margin-top: 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .main_menu nav ul {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 24px;
+    white-space: nowrap;
+  }
+
+  .main_menu nav > ul > li {
+    margin-right: 0;
+  }
 }
 
 .header_account > ul > li {
@@ -3199,6 +3228,18 @@ input:-ms-input-placeholder, textarea:-ms-input-placeholder {
   color: #999999;
   text-decoration: line-through;
 }
+/* WooCommerce价格样式 - 通用样式 */
+.price_box del {
+  font-size: 14px;
+  color: #999999;
+  text-decoration: line-through;
+  margin-right: 10px;
+}
+.price_box ins {
+  color: #ff2f2f;
+  text-decoration: none;
+  display: inline-block;
+}
 
 .product_thumb {
   position: relative;
@@ -4283,6 +4324,32 @@ input:-ms-input-placeholder, textarea:-ms-input-placeholder {
 .recent_content span {
   font-size: 18px;
   line-height: 36px;
+}
+/* Recent Product价格样式 */
+.recent_content .price_box {
+  padding-bottom: 0;
+}
+.recent_content .price_box span.current_price {
+  font-size: 18px;
+  line-height: 36px;
+  color: #ff2f2f;
+}
+.recent_content .price_box span.old_price {
+  font-size: 14px;
+  color: #999999;
+  text-decoration: line-through;
+  margin-left: 8px;
+}
+.recent_content .price_box del {
+  font-size: 14px;
+  color: #999999;
+  text-decoration: line-through;
+  margin-right: 8px;
+}
+.recent_content .price_box ins {
+  color: #ff2f2f;
+  text-decoration: none;
+  display: inline-block;
   display: inline-block;
 }
 
@@ -4874,6 +4941,39 @@ input:-ms-input-placeholder, textarea:-ms-input-placeholder {
   .product_d_right .price_box span.current_price {
     font-size: 20px;
   }
+}
+/* WooCommerce价格样式 - 促销价和原价 */
+.product_d_right .price_box del {
+  font-size: 14px;
+  color: #999999;
+  text-decoration: line-through;
+  margin-right: 10px;
+}
+.product_d_right .price_box ins {
+  font-size: 30px;
+  line-height: 30px;
+  color: #000000;
+  font-weight: 400;
+  text-decoration: none;
+  display: inline-block;
+}
+@media only screen and (min-width: 768px) and (max-width: 991px) {
+  .product_d_right .price_box ins {
+    font-size: 23px;
+    line-height: 20px;
+  }
+}
+@media only screen and (max-width: 767px) {
+  .product_d_right .price_box ins {
+    font-size: 20px;
+  }
+}
+/* 兼容旧的old_price类名 */
+.product_d_right .price_box span.old_price {
+  font-size: 14px;
+  color: #999999;
+  text-decoration: line-through;
+  margin-left: 10px;
 }
 .product_d_right .product_desc {
   margin-bottom: 36px;

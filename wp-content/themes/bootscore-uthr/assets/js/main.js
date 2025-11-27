@@ -52,6 +52,8 @@
         vertical: true,
         focusOnSelect: true,
         asNavFor: '.product_zoom_main_img',
+        autoplay: true,
+        autoplaySpeed: 5000,
         responsive:[
             {
               breakpoint: 576,
@@ -59,18 +61,24 @@
                 slidesToShow: 3,
                  vertical: false,  
                   arrows: false,
+                  autoplay: true,
+                  autoplaySpeed: 5000,
               }
             },
             {
               breakpoint: 768,
               settings: {
                   slidesToShow: 4,
+                  autoplay: true,
+                  autoplaySpeed: 5000,
               }
             },
             {
               breakpoint: 992,
               settings: {
                 slidesToShow: 3,
+                autoplay: true,
+                autoplaySpeed: 5000,
               }
             },
         ]
@@ -85,14 +93,27 @@
         arrows:false,
         vertical: true,
         asNavFor: '.zoom_tab_img',
+        autoplay: true,
+        autoplaySpeed: 5000,
+        pauseOnHover: true,
         responsive:[
             {
               breakpoint: 576,
               settings: {
-                 vertical: false,  
+                 vertical: false,
+                 autoplay: true,
+                 autoplaySpeed: 5000,
+                 pauseOnHover: true,
               }
             },
         ]
+    });
+    
+    // 鼠标悬停时暂停自动播放
+    $('.product_zoom_gallery').on('mouseenter', function() {
+        $('.zoom_tab_img, .product_zoom_main_img').slick('slickPause');
+    }).on('mouseleave', function() {
+        $('.zoom_tab_img, .product_zoom_main_img').slick('slickPlay');
     });
     
     

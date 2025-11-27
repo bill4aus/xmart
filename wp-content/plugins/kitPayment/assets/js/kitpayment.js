@@ -883,6 +883,109 @@ class woocart {
             return false;
         }
 
+        // Validate variable product variations before adding to cart
+        if (typeof window.kitpaymentProductData !== 'undefined' && 
+            window.kitpaymentProductData.isVariable === true && 
+            window.kitpaymentProductData.id == product_id) {
+            
+            var variationAttributes = window.kitpaymentProductData.variationAttributes || [];
+            var $form = $button.closest('form');
+            var missingAttributes = [];
+            
+            // Check each required variation attribute
+            for (var i = 0; i < variationAttributes.length; i++) {
+                var attr = variationAttributes[i];
+                var attrSlug = attr.slug || '';
+                var attrName = attr.name || attrSlug;
+                
+                if (!attrSlug) continue;
+                
+                // Try to find the variation selector (select or input)
+                var $attrSelector = null;
+                
+                // Method 1: Find by name attribute (most common)
+                if ($form.length) {
+                    $attrSelector = $form.find('select[name="' + attrSlug + '"], input[name="' + attrSlug + '"]');
+                }
+                
+                // Method 2: If not found in form, search in the product wrapper
+                if (!$attrSelector || !$attrSelector.length) {
+                    var $productWrapper = $button.closest('.product, .woocommerce-loop-product, .product-details, .summary');
+                    $attrSelector = $productWrapper.find('select[name="' + attrSlug + '"], input[name="' + attrSlug + '"]');
+                }
+                
+                // Method 3: Try to find by data attribute or class (for custom themes)
+                if (!$attrSelector || !$attrSelector.length) {
+                    var $productWrapper = $button.closest('.product, .woocommerce-loop-product, .product-details, .summary');
+                    $attrSelector = $productWrapper.find('[data-attribute="' + attrSlug + '"], [data-attribute-name="' + attrSlug + '"]');
+                }
+                
+                // Check if attribute is selected
+                var isSelected = false;
+                if ($attrSelector && $attrSelector.length) {
+                    if ($attrSelector.is('select')) {
+                        // For select dropdown
+                        var selectedValue = $attrSelector.val();
+                        isSelected = selectedValue && selectedValue !== '' && selectedValue !== '0';
+                    } else if ($attrSelector.is('input[type="radio"]')) {
+                        // For radio buttons - check if any radio with same name is checked
+                        var radioName = $attrSelector.attr('name');
+                        if (radioName) {
+                            var $allRadios = $form.length ? $form.find('input[type="radio"][name="' + radioName + '"]') : 
+                                                           $('input[type="radio"][name="' + radioName + '"]');
+                            isSelected = $allRadios.filter(':checked').length > 0;
+                        } else {
+                            isSelected = $attrSelector.is(':checked');
+                        }
+                    } else if ($attrSelector.is('input[type="checkbox"]')) {
+                        // For checkboxes
+                        isSelected = $attrSelector.is(':checked');
+                    } else {
+                        // For other input types
+                        var inputValue = $attrSelector.val();
+                        isSelected = inputValue && inputValue !== '' && inputValue !== '0';
+                    }
+                } else {
+                    // If selector not found, it might be a required attribute that hasn't been selected
+                    // In this case, we should still require it to be selected
+                    // But we'll try one more method: search in the entire document
+                    var $globalSelector = $('select[name="' + attrSlug + '"], input[name="' + attrSlug + '"]');
+                    if ($globalSelector && $globalSelector.length) {
+                        if ($globalSelector.is('select')) {
+                            var selectedValue = $globalSelector.val();
+                            isSelected = selectedValue && selectedValue !== '' && selectedValue !== '0';
+                        } else if ($globalSelector.is('input[type="radio"]')) {
+                            var radioName = $globalSelector.attr('name');
+                            if (radioName) {
+                                var $allRadios = $('input[type="radio"][name="' + radioName + '"]');
+                                isSelected = $allRadios.filter(':checked').length > 0;
+                            }
+                        } else {
+                            var inputValue = $globalSelector.val();
+                            isSelected = inputValue && inputValue !== '' && inputValue !== '0';
+                        }
+                    }
+                }
+                
+                if (!isSelected) {
+                    missingAttributes.push(attrName);
+                }
+            }
+            
+            // If there are missing attributes, show error and prevent adding to cart
+            if (missingAttributes.length > 0) {
+                var errorMessage = '请先选择以下选项：\n' + missingAttributes.join('、\n');
+                // Try to show WooCommerce-style notice if available
+                if (typeof wc_add_to_cart_params !== 'undefined' && wc_add_to_cart_params.i18n_view_cart) {
+                    // Use alert as fallback
+                    alert(errorMessage);
+                } else {
+                    alert(errorMessage);
+                }
+                return false;
+            }
+        }
+
         // Update shopping_cart section
         // Add to cart
         console.log('Product ID:', product_id, 'Quantity:', quantity, 'Product Info:', productInfo);
