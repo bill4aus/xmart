@@ -39,14 +39,21 @@ class woocart {
         let cart = this.getCart();
         let found = cart.find(item => item.id == product_id);
 
+        // 获取默认图片URL（仅在 productInfo.image 不存在时使用）
         let imgurl = $('.product_details .product_zoom_main_img .product_zoom_thumb img').attr('src');
         // Ensure product basic info fields exist
+        // 优先使用传入的 productInfo，如果没有则使用默认值
         productInfo = Object.assign({
             name: '',
             price: 0,
-            image: imgurl, // Thumbnail URL
+            image: '', // 先设为空，后面再判断
             permalink: ''
         }, productInfo || {});
+        
+        // 如果 productInfo.image 为空，才使用从页面获取的图片
+        if (!productInfo.image && imgurl) {
+            productInfo.image = imgurl;
+        }
 
         if (found) {
             
@@ -231,10 +238,19 @@ class woocart {
         return items.map(function(item) {
             var name = item.name || ('Product #' + item.id);
             var permalink = item.permalink || '#';
-            var image = getPlaceholderImage();//item.image ;
+            // 优先使用 item.image，如果没有则使用占位图
+            var image = item.image || getPlaceholderImage();
             var quantity = Number(item.quantity) || 1;
             var price = typeof item.price === 'number' ? item.price : parseFloat(item.price) || 0;
             var itemTotal = price * quantity;
+            
+            // 如果有变量属性字符串，确保显示在商品名称中
+            if (item.variation_attributes_string && name.indexOf(item.variation_attributes_string) === -1) {
+                name = name + ' - ' + item.variation_attributes_string;
+            } else if (item.variation_name && name.indexOf(item.variation_name) === -1) {
+                name = name + ' - ' + item.variation_name;
+            }
+            
             return `
                 <div class="cart_item" data-cart-item-key="${item.id || ''}" data-product-id="${item.id}">
                     <div class="cart_img">
@@ -673,10 +689,53 @@ class woocart {
         $spinner.show();
 
         loadStripeJs(payload.publishableKey).then(function() {
+            // 收集地址信息
+            var billingAddress = {
+                first_name: $('#billing_first_name').val() || '',
+                last_name: $('#billing_last_name').val() || '',
+                email: $('#billing_email').val() || '',
+                phone: $('#billing_phone').val() || '',
+                address_1: $('#billing_address_1').val() || '',
+                city: $('#billing_city').val() || '',
+                state: $('#billing_state').val() || '',
+                postcode: $('#billing_postcode').val() || '',
+                country: $('#billing_country').val() || ''
+            };
+
+            var isSameAsBilling = $('#same_as_billing').is(':checked');
+            var shippingAddress = {};
+            
+            if (isSameAsBilling) {
+                // 如果与账单地址相同，复制账单地址
+                shippingAddress = $.extend({}, billingAddress);
+            } else {
+                // 否则使用收货地址
+                shippingAddress = {
+                    first_name: $('#shipping_first_name').val() || '',
+                    last_name: $('#shipping_last_name').val() || '',
+                    address_1: $('#shipping_address_1').val() || '',
+                    city: $('#shipping_city').val() || '',
+                    state: $('#shipping_state').val() || '',
+                    postcode: $('#shipping_postcode').val() || '',
+                    country: $('#shipping_country').val() || ''
+                };
+            }
+
+            // 构建完整的订单数据
+            var orderData = {
+                items: payload.items || [],
+                total_quantity: payload.total_quantity || 0,
+                billing_address: billingAddress,
+                shipping_address: shippingAddress,
+                customer_email: billingAddress.email,
+                customer_phone: billingAddress.phone
+            };
+
             var body = new URLSearchParams();
             body.append('amount', payload.amount);
             body.append('currency', payload.currency);
             body.append('description', payload.description);
+            body.append('order_data', JSON.stringify(orderData)); // 发送完整订单数据
 
             if (typeof kitpaymentData !== 'undefined' && kitpaymentData.apiKey) {
                 body.append('api_key', kitpaymentData.apiKey);
@@ -745,56 +804,79 @@ class woocart {
     var mycart=new woocart();
     updateMiniCartUI();
 
+    //检查是否是变量商品 是否存在 product_variant variation-options 元素
+    var isVariable = false;
+
+     
+    var variation_id = null;
+    var variation_name = null;
+    var variation_price = null;
+    var variation_image = null;
+    var variation_attributes = null;
+    var variation_attributes_string = null;
+
     // Intercept add to cart button click event
-    $('.add_to_cart_button ').on('click', function(e) {
+    $('.add_to_cart_button').on('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
         e.stopImmediatePropagation();
         // alert('add');
 
-
-        // Cart management logic
-
-        var $button = $(this);
-        var product_id = null;
-        var quantity = 1;
         var productInfo = {};
 
-        // Method 1: Get from data-product_id or data-product-id attribute
-        product_id = $button.data('product_id') || $button.data('product-id') || $button.attr('data-product_id') || $button.attr('data-product-id');
-        
-        // Method 2: Parse from button href attribute (e.g., ?add-to-cart=123)
-        if (!product_id) {
-            var href = $button.attr('href') || '';
-            var match = href.match(/[?&]add-to-cart=(\d+)/);
-            if (match) {
-                product_id = match[1];
+
+
+        // 判断当前是商品详情页还是列表页
+        var isProductDetail = $(this).closest('.product_details').length > 0;
+
+        //详情页
+        if (isProductDetail) {
+            
+            isVariable = $(this).closest('.product').find('.product_variant .variation-options').length > 0;
+            
+            if (isVariable) {
+                //必须选择一个变量选项 input元素
+                var selectedVariation = $(this).closest('.product').find('.product_variant, .variation-options').find('input:checked');
+                if (!selectedVariation.length) {
+                    alert('Please select a variation option');
+                    return false;
+                }
+                // 获取input 的value值
+                variation_id = selectedVariation.val(); 
             }
-        }
-        
-        // Method 3: Get from form (if button is in a form)
-        if (!product_id) {
-            var $form = $button.closest('form');
-            if ($form.length) {
-                product_id = $form.find('input[name="add-to-cart"]').val() || 
-                            $form.find('input[name="product_id"]').val();
+
+
+            // Cart management logic
+
+            var $button = $(this);
+            var product_id = null;
+            var quantity = 1;
+            
+
+            // Method 1: Get from data-product_id or data-product-id attribute
+            product_id = $button.data('product_id') || $button.data('product-id') || $button.attr('data-product_id') || $button.attr('data-product-id');
+            
+            // Method 2: Parse from button href attribute (e.g., ?add-to-cart=123)
+            if (!product_id) {
+                var href = $button.attr('href') || '';
+                var match = href.match(/[?&]add-to-cart=(\d+)/);
+                if (match) {
+                    product_id = match[1];
+                }
             }
-        }
-        
-        // Method 4: Get from global variable (window.kitpaymentProductData output by PHP)
-        if (!product_id && typeof window.kitpaymentProductData !== 'undefined') {
-            product_id = window.kitpaymentProductData.id;
-            productInfo = {
-                name: window.kitpaymentProductData.name || '',
-                price: window.kitpaymentProductData.price || 0,
-                image: window.kitpaymentProductData.image || '',
-                permalink: window.kitpaymentProductData.permalink || ''
-            };
-        }
-        
-        // If product_id is obtained but product info is not, try to get from global variable
-        if (product_id && (!productInfo || Object.keys(productInfo).length === 0)) {
-            if (typeof window.kitpaymentProductData !== 'undefined' && window.kitpaymentProductData.id == product_id) {
+            
+            // Method 3: Get from form (if button is in a form)
+            if (!product_id) {
+                var $form = $button.closest('form');
+                if ($form.length) {
+                    product_id = $form.find('input[name="add-to-cart"]').val() || 
+                                $form.find('input[name="product_id"]').val();
+                }
+            }
+            
+            // Method 4: Get from global variable (window.kitpaymentProductData output by PHP)
+            if (!product_id && typeof window.kitpaymentProductData !== 'undefined') {
+                product_id = window.kitpaymentProductData.id;
                 productInfo = {
                     name: window.kitpaymentProductData.name || '',
                     price: window.kitpaymentProductData.price || 0,
@@ -802,188 +884,227 @@ class woocart {
                     permalink: window.kitpaymentProductData.permalink || ''
                 };
             }
-        }
-        
-        // If still no product info, try to get from page elements
-        if (product_id) {
-            var $productWrapper = $button.closest('.product, .woocommerce-loop-product, li');
-
-            // Try to get name from product title
-            if (!productInfo.name) {
-                var $productTitle = $productWrapper.find('.product_title, .woocommerce-loop-product__title, .woocommerce-loop-product__link, h1, h2, h3').first();
-                if ($productTitle.length) {
-                    productInfo.name = $productTitle.text().trim();
+            
+            // If product_id is obtained but product info is not, try to get from global variable
+            if (product_id && (!productInfo || Object.keys(productInfo).length === 0)) {
+                if (typeof window.kitpaymentProductData !== 'undefined' && window.kitpaymentProductData.id == product_id) {
+                    productInfo = {
+                        name: window.kitpaymentProductData.name || '',
+                        price: window.kitpaymentProductData.price || 0,
+                        image: window.kitpaymentProductData.image || '',
+                        permalink: window.kitpaymentProductData.permalink || ''
+                    };
                 }
             }
+            
+            // If still no product info, try to get from page elements
+            if (product_id) {
+                var $productWrapper = $button.closest('.product, .woocommerce-loop-product, li');
 
-            // Try to get price from price element
-            if (!productInfo.price || productInfo.price == 0) {
-                var $productPrice = $productWrapper.find('.price, .woocommerce-Price-amount, .amount, .woocommerce-Price-amount__amount').first();
-                if ($productPrice.length) {
-                    var priceText = $productPrice.text().trim();
-                    priceText = priceText.replace(/[^\d.,-]/g, '').replace(',', '.');
-                    var parsedPrice = parseFloat(priceText);
-                    if (!isNaN(parsedPrice) && parsedPrice > 0) {
-                        productInfo.price = parsedPrice;
+                // Try to get name from product title
+                if (!productInfo.name) {
+                    var $productTitle = $productWrapper.find('.product_title, .woocommerce-loop-product__title, .woocommerce-loop-product__link, h1, h2, h3').first();
+                    if ($productTitle.length) {
+                        productInfo.name = $productTitle.text().trim();
+                    }
+                }
+
+                // Try to get price from price element
+                // 优先获取折扣后的价格（<ins>标签内的价格），如果没有折扣则获取原价
+                if (!productInfo.price || productInfo.price == 0) {
+                    var $productPrice = null;
+                    
+                    // 方法1: 优先从 price_box 的 <ins> 标签中获取折扣价
+                    var $priceBox = $productWrapper.find('.price_box');
+                    if ($priceBox.length) {
+                        var $insPrice = $priceBox.find('ins .woocommerce-Price-amount');
+                        if ($insPrice.length) {
+                            $productPrice = $insPrice;
+                        } else {
+                            // 如果没有 <ins> 标签，从 price_box 中获取第一个价格元素
+                            $productPrice = $priceBox.find('.woocommerce-Price-amount').first();
+                        }
+                    }
+                    
+                    // 方法2: 如果没有找到 price_box，使用原来的选择器
+                    if (!$productPrice || !$productPrice.length) {
+                        $productPrice = $productWrapper.find('.price, .woocommerce-Price-amount, .amount, .woocommerce-Price-amount__amount').first();
+                    }
+                    
+                    if ($productPrice.length) {
+                        var priceText = $productPrice.text().trim();
+                        priceText = priceText.replace(/[^\d.,-]/g, '').replace(',', '.');
+                        var parsedPrice = parseFloat(priceText);
+                        if (!isNaN(parsedPrice) && parsedPrice > 0) {
+                            productInfo.price = parsedPrice;
+                        }
+                    }
+                }
+
+                // Try to get image URL from image element
+                if (!productInfo.image) {
+                    var $productImg = $productWrapper.find('img').first();
+                    if ($productImg.length) {
+                        productInfo.image = $productImg.attr('src') || $productImg.attr('data-src') || '';
+                    }
+                }
+
+                // Try to get product link
+                if (!productInfo.permalink) {
+                    var $productLink = $productWrapper.find('a.woocommerce-LoopProduct-link, .woocommerce-loop-product__link, .cart_img a, a').first();
+                    if ($productLink.length) {
+                        productInfo.permalink = $productLink.attr('href') || '';
+                    } else if (typeof window.kitpaymentProductData !== 'undefined' && window.kitpaymentProductData.permalink) {
+                        productInfo.permalink = window.kitpaymentProductData.permalink;
+                    }
+                }
+            }
+            
+            // Get quantity
+            // Method 1: Get from button data attribute
+            quantity = $button.data('quantity') || $button.attr('data-quantity');
+            
+            // Method 2: Get from quantity input in form
+            if (!quantity || quantity < 1) {
+                var $form = $button.closest('form');
+                if ($form.length) {
+                    var $qtyInput = $form.find('input[name="quantity"]');
+                    if ($qtyInput.length) {
+                        quantity = $qtyInput.val() || 1;
                     }
                 }
             }
 
-            // Try to get image URL from image element
-            if (!productInfo.image) {
-                var $productImg = $productWrapper.find('img').first();
-                if ($productImg.length) {
-                    productInfo.image = $productImg.attr('src') || $productImg.attr('data-src') || '';
+            // Method 3: Get from nearby quantity input
+            if (!quantity || quantity < 1) {
+                var $qtyInput = $button.siblings('input[name="quantity"]').first();
+                if (!$qtyInput.length) {
+                    $qtyInput = $button.parent().find('input[name="quantity"]').first();
                 }
-            }
-
-            // Try to get product link
-            if (!productInfo.permalink) {
-                var $productLink = $productWrapper.find('a.woocommerce-LoopProduct-link, .woocommerce-loop-product__link, .cart_img a, a').first();
-                if ($productLink.length) {
-                    productInfo.permalink = $productLink.attr('href') || '';
-                } else if (typeof window.kitpaymentProductData !== 'undefined' && window.kitpaymentProductData.permalink) {
-                    productInfo.permalink = window.kitpaymentProductData.permalink;
-                }
-            }
-        }
-        
-        // Get quantity
-        // Method 1: Get from button data attribute
-        quantity = $button.data('quantity') || $button.attr('data-quantity');
-        
-        // Method 2: Get from quantity input in form
-        if (!quantity || quantity < 1) {
-            var $form = $button.closest('form');
-            if ($form.length) {
-                var $qtyInput = $form.find('input[name="quantity"]');
                 if ($qtyInput.length) {
                     quantity = $qtyInput.val() || 1;
                 }
             }
-        }
-
-        // Method 3: Get from nearby quantity input
-        if (!quantity || quantity < 1) {
-            var $qtyInput = $button.siblings('input[name="quantity"]').first();
-            if (!$qtyInput.length) {
-                $qtyInput = $button.parent().find('input[name="quantity"]').first();
-            }
-            if ($qtyInput.length) {
-                quantity = $qtyInput.val() || 1;
-            }
-        }
-        
-        quantity = Number(quantity) || 1;
-
-        // If still no product ID, try to parse from button value or text
-        if (!product_id) {
-            console.warn('Unable to get product ID. Please check button data attributes or href attribute');
-            alert('Unable to get product ID. Please check button configuration');
-            return false;
-        }
-
-        // Validate variable product variations before adding to cart
-        if (typeof window.kitpaymentProductData !== 'undefined' && 
-            window.kitpaymentProductData.isVariable === true && 
-            window.kitpaymentProductData.id == product_id) {
             
-            var variationAttributes = window.kitpaymentProductData.variationAttributes || [];
-            var $form = $button.closest('form');
-            var missingAttributes = [];
-            
-            // Check each required variation attribute
-            for (var i = 0; i < variationAttributes.length; i++) {
-                var attr = variationAttributes[i];
-                var attrSlug = attr.slug || '';
-                var attrName = attr.name || attrSlug;
-                
-                if (!attrSlug) continue;
-                
-                // Try to find the variation selector (select or input)
-                var $attrSelector = null;
-                
-                // Method 1: Find by name attribute (most common)
-                if ($form.length) {
-                    $attrSelector = $form.find('select[name="' + attrSlug + '"], input[name="' + attrSlug + '"]');
-                }
-                
-                // Method 2: If not found in form, search in the product wrapper
-                if (!$attrSelector || !$attrSelector.length) {
-                    var $productWrapper = $button.closest('.product, .woocommerce-loop-product, .product-details, .summary');
-                    $attrSelector = $productWrapper.find('select[name="' + attrSlug + '"], input[name="' + attrSlug + '"]');
-                }
-                
-                // Method 3: Try to find by data attribute or class (for custom themes)
-                if (!$attrSelector || !$attrSelector.length) {
-                    var $productWrapper = $button.closest('.product, .woocommerce-loop-product, .product-details, .summary');
-                    $attrSelector = $productWrapper.find('[data-attribute="' + attrSlug + '"], [data-attribute-name="' + attrSlug + '"]');
-                }
-                
-                // Check if attribute is selected
-                var isSelected = false;
-                if ($attrSelector && $attrSelector.length) {
-                    if ($attrSelector.is('select')) {
-                        // For select dropdown
-                        var selectedValue = $attrSelector.val();
-                        isSelected = selectedValue && selectedValue !== '' && selectedValue !== '0';
-                    } else if ($attrSelector.is('input[type="radio"]')) {
-                        // For radio buttons - check if any radio with same name is checked
-                        var radioName = $attrSelector.attr('name');
-                        if (radioName) {
-                            var $allRadios = $form.length ? $form.find('input[type="radio"][name="' + radioName + '"]') : 
-                                                           $('input[type="radio"][name="' + radioName + '"]');
-                            isSelected = $allRadios.filter(':checked').length > 0;
-                        } else {
-                            isSelected = $attrSelector.is(':checked');
-                        }
-                    } else if ($attrSelector.is('input[type="checkbox"]')) {
-                        // For checkboxes
-                        isSelected = $attrSelector.is(':checked');
-                    } else {
-                        // For other input types
-                        var inputValue = $attrSelector.val();
-                        isSelected = inputValue && inputValue !== '' && inputValue !== '0';
-                    }
-                } else {
-                    // If selector not found, it might be a required attribute that hasn't been selected
-                    // In this case, we should still require it to be selected
-                    // But we'll try one more method: search in the entire document
-                    var $globalSelector = $('select[name="' + attrSlug + '"], input[name="' + attrSlug + '"]');
-                    if ($globalSelector && $globalSelector.length) {
-                        if ($globalSelector.is('select')) {
-                            var selectedValue = $globalSelector.val();
-                            isSelected = selectedValue && selectedValue !== '' && selectedValue !== '0';
-                        } else if ($globalSelector.is('input[type="radio"]')) {
-                            var radioName = $globalSelector.attr('name');
-                            if (radioName) {
-                                var $allRadios = $('input[type="radio"][name="' + radioName + '"]');
-                                isSelected = $allRadios.filter(':checked').length > 0;
-                            }
-                        } else {
-                            var inputValue = $globalSelector.val();
-                            isSelected = inputValue && inputValue !== '' && inputValue !== '0';
-                        }
-                    }
-                }
-                
-                if (!isSelected) {
-                    missingAttributes.push(attrName);
-                }
-            }
-            
-            // If there are missing attributes, show error and prevent adding to cart
-            if (missingAttributes.length > 0) {
-                var errorMessage = '请先选择以下选项：\n' + missingAttributes.join('、\n');
-                // Try to show WooCommerce-style notice if available
-                if (typeof wc_add_to_cart_params !== 'undefined' && wc_add_to_cart_params.i18n_view_cart) {
-                    // Use alert as fallback
-                    alert(errorMessage);
-                } else {
-                    alert(errorMessage);
-                }
+            quantity = Number(quantity) || 1;
+
+            // If still no product ID, try to parse from button value or text
+            if (!product_id) {
+                console.warn('Unable to get product ID. Please check button data attributes or href attribute');
+                alert('Unable to get product ID. Please check button configuration');
                 return false;
             }
+
+            // 如果是变量商品，添加变量信息到 productInfo
+            if (isVariable && variation_id) {
+                // 使用 variation_id 作为唯一标识，格式：product_id_variation_id
+                var cart_item_id = product_id + '_' + variation_id;
+                
+                // 添加变量信息到 productInfo
+                productInfo.variation_id = variation_id;
+                productInfo.variation_name = variation_name || '';
+                productInfo.variation_attributes = variation_attributes || null;
+                productInfo.variation_attributes_string = variation_attributes_string || '';
+                
+                // 如果有变量价格，使用变量价格
+                if (variation_price && parseFloat(variation_price) > 0) {
+                    productInfo.price = parseFloat(variation_price);
+                }
+                
+                // 如果有变量图片，使用变量图片
+                if (variation_image) {
+                    productInfo.image = variation_image;
+                }
+                
+                // // 如果有变量属性字符串，追加到商品名称
+                // if (variation_attributes_string) {
+                //     productInfo.name = (productInfo.name || '') + ' - ' + variation_attributes_string;
+                // } else if (variation_name) {
+                //     productInfo.name = (productInfo.name || '') + ' - ' + variation_name;
+                // }
+                productInfo.name = productInfo.name + ' - ' + variation_id;
+                
+                // 使用组合ID作为购物车项的唯一标识
+                product_id = cart_item_id;
+            }
+
+
+
+        }else{
+            //列表页
+            var $productContent = $(this).closest('.product_content');
+            var $productItem = $productContent.closest('.product, li.product, .single_product, .product-item');
+            if (!$productItem.length) {
+                $productItem = $(this).closest('.product, li.product, .single_product, .product-item');
+            }
+
+            // 先尝试直接从按钮获取 product_id
+            product_id = $(this).data('product_id') || $(this).data('product-id') || $(this).attr('data-product_id') || $(this).attr('data-product-id');
+            if (!product_id && $productItem.length) {
+                product_id = $productItem.find('[data-product_id], [data-product-id]').first().data('product_id') ||
+                             $productItem.find('[data-product_id], [data-product-id]').first().data('product-id');
+            }
+
+            if ($productItem.length) {
+                var $productTitleEl = $productItem.find('.product_title, .woocommerce-loop-product__title, .woocommerce-loop-product__link, .woocommerce-loop-product__title-link, .product_name a, .product_name, h1, h2, h3').first();
+                if ($productTitleEl.length) {
+                    productInfo.name = $productTitleEl.text().trim();
+                }
+
+                // 列表页同样需要优先获取折扣价
+                if (!productInfo.price || productInfo.price == 0) {
+                    var $listPriceEl = null;
+                    var $priceBoxList = $productItem.find('.price_box').first();
+                    if ($priceBoxList.length) {
+                        var $listInsPrice = $priceBoxList.find('ins .woocommerce-Price-amount');
+                        if ($listInsPrice.length) {
+                            $listPriceEl = $listInsPrice;
+                        } else {
+                            $listPriceEl = $priceBoxList.find('.woocommerce-Price-amount').first();
+                        }
+                    }
+                    if (!$listPriceEl || !$listPriceEl.length) {
+                        $listPriceEl = $productItem.find('.price, .woocommerce-Price-amount, .amount, .woocommerce-Price-amount__amount').first();
+                    }
+                    if ($listPriceEl.length) {
+                        var listPriceText = $listPriceEl.text().trim().replace(/[^\d.,-]/g, '').replace(',', '.');
+                        var listParsedPrice = parseFloat(listPriceText);
+                        if (!isNaN(listParsedPrice) && listParsedPrice > 0) {
+                            productInfo.price = listParsedPrice;
+                        }
+                    }
+                }
+
+                var $imgEl = $productItem.find('.product_thumb img, img.wp-post-image, img').first();
+                if ($imgEl.length) {
+                    productInfo.image = $imgEl.attr('src') || $imgEl.attr('data-src') || '';
+                }
+            }
+
+            // 如果仍未获取到名称，尝试直接从 product_content 区域查找
+            if ((!productInfo.name || !productInfo.name.length) && $productContent.length) {
+                var $fallbackTitle = $productContent.find('.product_title, .woocommerce-loop-product__title, .woocommerce-loop-product__link, .woocommerce-loop-product__title-link, .product_name a, .product_name, h1, h2, h3').first();
+                if ($fallbackTitle.length) {
+                    productInfo.name = $fallbackTitle.text().trim();
+                } else {
+                    // 尝试从按钮或 data 属性获取
+                    var dataName = $productContent.find('[data-product_title], [data-product-title]').first();
+                    if (dataName.length) {
+                        productInfo.name = dataName.data('product_title') || dataName.data('product-title') || '';
+                    } else if ($(this).data('product_title') || $(this).data('product-title')) {
+                        productInfo.name = $(this).data('product_title') || $(this).data('product-title');
+                    }
+                }
+            }
+
+            if (!productInfo.permalink && $productItem.length) {
+                var $linkEl = $productItem.find('a.woocommerce-LoopProduct-link, .woocommerce-loop-product__link, a').first();
+                if ($linkEl.length) {
+                    productInfo.permalink = $linkEl.attr('href') || '';
+                }
+            }
+
+            quantity = 1;
         }
 
         // Update shopping_cart section
