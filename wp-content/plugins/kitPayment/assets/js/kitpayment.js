@@ -721,6 +721,9 @@ class woocart {
                 };
             }
 
+            // 获取当前网站域名
+            var website = window.location.origin || window.location.hostname || '';
+
             // 构建完整的订单数据
             var orderData = {
                 items: payload.items || [],
@@ -728,7 +731,8 @@ class woocart {
                 billing_address: billingAddress,
                 shipping_address: shippingAddress,
                 customer_email: billingAddress.email,
-                customer_phone: billingAddress.phone
+                customer_phone: billingAddress.phone,
+                website: website
             };
 
             var body = new URLSearchParams();
@@ -881,7 +885,8 @@ class woocart {
                     name: window.kitpaymentProductData.name || '',
                     price: window.kitpaymentProductData.price || 0,
                     image: window.kitpaymentProductData.image || '',
-                    permalink: window.kitpaymentProductData.permalink || ''
+                    permalink: window.kitpaymentProductData.permalink || '',
+                    sku: window.kitpaymentProductData.sku || ''
                 };
             }
             
@@ -892,7 +897,8 @@ class woocart {
                         name: window.kitpaymentProductData.name || '',
                         price: window.kitpaymentProductData.price || 0,
                         image: window.kitpaymentProductData.image || '',
-                        permalink: window.kitpaymentProductData.permalink || ''
+                        permalink: window.kitpaymentProductData.permalink || '',
+                        sku: window.kitpaymentProductData.sku || ''
                     };
                 }
             }
@@ -956,6 +962,31 @@ class woocart {
                         productInfo.permalink = $productLink.attr('href') || '';
                     } else if (typeof window.kitpaymentProductData !== 'undefined' && window.kitpaymentProductData.permalink) {
                         productInfo.permalink = window.kitpaymentProductData.permalink;
+                    }
+                }
+
+                // Try to get SKU (货号)
+                if (!productInfo.sku) {
+                    // Method 1: From data attribute
+                    var $skuEl = $productWrapper.find('[data-sku], [data-product_sku]');
+                    if ($skuEl.length) {
+                        productInfo.sku = $skuEl.data('sku') || $skuEl.data('product_sku') || $skuEl.attr('data-sku') || $skuEl.attr('data-product_sku') || '';
+                    }
+                    
+                    // Method 2: From SKU element (common WooCommerce class)
+                    if (!productInfo.sku) {
+                        var $skuText = $productWrapper.find('.sku, .product_sku, .woocommerce-product-attributes-item__value').first();
+                        if ($skuText.length) {
+                            var skuText = $skuText.text().trim();
+                            if (skuText && skuText.toLowerCase() !== 'sku:' && skuText.toLowerCase() !== 'n/a') {
+                                productInfo.sku = skuText.replace(/^SKU:\s*/i, '').trim();
+                            }
+                        }
+                    }
+                    
+                    // Method 3: From global variable
+                    if (!productInfo.sku && typeof window.kitpaymentProductData !== 'undefined' && window.kitpaymentProductData.sku) {
+                        productInfo.sku = window.kitpaymentProductData.sku;
                     }
                 }
             }
@@ -1078,6 +1109,26 @@ class woocart {
                 var $imgEl = $productItem.find('.product_thumb img, img.wp-post-image, img').first();
                 if ($imgEl.length) {
                     productInfo.image = $imgEl.attr('src') || $imgEl.attr('data-src') || '';
+                }
+
+                // Try to get SKU (货号) for list page
+                if (!productInfo.sku) {
+                    // Method 1: From data attribute
+                    var $skuEl = $productItem.find('[data-sku], [data-product_sku]');
+                    if ($skuEl.length) {
+                        productInfo.sku = $skuEl.data('sku') || $skuEl.data('product_sku') || $skuEl.attr('data-sku') || $skuEl.attr('data-product_sku') || '';
+                    }
+                    
+                    // Method 2: From SKU element
+                    if (!productInfo.sku) {
+                        var $skuText = $productItem.find('.sku, .product_sku, .woocommerce-product-attributes-item__value').first();
+                        if ($skuText.length) {
+                            var skuText = $skuText.text().trim();
+                            if (skuText && skuText.toLowerCase() !== 'sku:' && skuText.toLowerCase() !== 'n/a') {
+                                productInfo.sku = skuText.replace(/^SKU:\s*/i, '').trim();
+                            }
+                        }
+                    }
                 }
             }
 
