@@ -8017,4 +8017,131 @@ input:-ms-input-placeholder, textarea:-ms-input-placeholder {
 
 /*modal css end*/
 
+/*----------------------------------------*/
+/*  商品属性选择器按钮样式
+/*----------------------------------------*/
+/* 属性选择器按钮容器 - 横排显示 */
+.product_variant .variation-options.variation-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 8px;
+}
+
+.product_variant .variation-options.variation-buttons li {
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+}
+
+/* 属性选择器按钮基础样式 */
+.product_variant .variation-options.variation-buttons .variation-button,
+.product_variant .variation-options.variation-buttons .variation-button-label {
+  display: inline-block;
+  cursor: pointer;
+  margin: 0;
+}
+
+.product_variant .variation-options.variation-buttons .variation-button {
+  display: inline-block;
+  padding: 8px 16px;
+  border: 2px solid #ddd;
+  background-color: #ffffff;
+  color: #000000;
+  text-align: center;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  min-width: 40px;
+  min-height: 40px;
+  box-sizing: border-box;
+}
+
+/* 隐藏radio input */
+.product_variant .variation-options.variation-buttons .variation-option-input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* 颜色选择器按钮特殊样式 */
+.product_variant .variation-options.variation-buttons.color-options .variation-button {
+  min-width: 50px;
+  min-height: 50px;
+  border-radius: 4px;
+  position: relative;
+}
+
+/* 按钮悬停效果 */
+.product_variant .variation-options.variation-buttons .variation-button:hover {
+  border-color: #9933ff;
+  background-color: #f8f4ff;
+}
+
+/* 按钮选中状态 - 使用站点主色调 */
+.product_variant .variation-options.variation-buttons li.active .variation-button,
+.product_variant .variation-options.variation-buttons .variation-button.active {
+  background-color: #9933ff !important;
+  border-color: #9933ff;
+  color: #ffffff;
+}
+
+/* 颜色选择器选中状态 - 保持颜色显示但添加边框和覆盖层 */
+.product_variant .variation-options.variation-buttons.color-options li.active .variation-button,
+.product_variant .variation-options.variation-buttons.color-options .variation-button.active {
+  border-color: #9933ff !important;
+  border-width: 3px;
+  box-shadow: 0 0 0 2px rgba(153, 51, 255, 0.3), inset 0 0 0 2px rgba(255, 255, 255, 0.8);
+  position: relative;
+}
+
+.product_variant .variation-options.variation-buttons.color-options li.active .variation-button::after,
+.product_variant .variation-options.variation-buttons.color-options .variation-button.active::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: bold;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.5);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* 响应式设计 */
+@media only screen and (max-width: 767px) {
+  .product_variant .variation-options.variation-buttons {
+    gap: 6px;
+  }
+  
+  .product_variant .variation-options.variation-buttons .variation-button {
+    padding: 6px 12px;
+    font-size: 13px;
+    min-width: 36px;
+    min-height: 36px;
+  }
+  
+  .product_variant .variation-options.variation-buttons.color-options .variation-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media only screen and (min-width: 768px) and (max-width: 991px) {
+  .product_variant .variation-options.variation-buttons .variation-button {
+    padding: 7px 14px;
+    font-size: 13px;
+  }
+}
+
 /*# sourceMappingURL=style.css.map */

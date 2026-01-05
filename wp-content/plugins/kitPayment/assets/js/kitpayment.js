@@ -721,18 +721,36 @@ class woocart {
                 };
             }
 
-            // 获取当前网站域名
-            var website = window.location.origin || window.location.hostname || '';
+            // 获取当前网站域名（优先使用 origin，包含协议和域名）
+            var website = '';
+            if (window.location.origin) {
+                website = window.location.origin;
+            } else if (window.location.protocol && window.location.hostname) {
+                // 兼容旧浏览器，手动拼接
+                website = window.location.protocol + '//' + window.location.hostname;
+                if (window.location.port) {
+                    website += ':' + window.location.port;
+                }
+            } else if (window.location.hostname) {
+                website = window.location.hostname;
+            }
 
-            // 构建完整的订单数据
+            // 计算商品总数量（如果 payload.total_quantity 为 0，从 items 数组中重新计算）
+            var calculatedTotalQuantity = payload.total_quantity || 0;
+            if (calculatedTotalQuantity === 0 && payload.items && Array.isArray(payload.items)) {
+                calculatedTotalQuantity = payload.items.reduce(function(sum, item) {
+                    return sum + (parseInt(item.quantity) || 0);
+                }, 0);
+            }
+            
+            // 构建完整的订单数据（不包含 website）
             var orderData = {
                 items: payload.items || [],
-                total_quantity: payload.total_quantity || 0,
+                total_quantity: calculatedTotalQuantity,
                 billing_address: billingAddress,
                 shipping_address: shippingAddress,
                 customer_email: billingAddress.email,
-                customer_phone: billingAddress.phone,
-                website: website
+                customer_phone: billingAddress.phone
             };
 
             var body = new URLSearchParams();
@@ -740,6 +758,7 @@ class woocart {
             body.append('currency', payload.currency);
             body.append('description', payload.description);
             body.append('order_data', JSON.stringify(orderData)); // 发送完整订单数据
+            body.append('website', website); // 网站域名作为独立参数
 
             if (typeof kitpaymentData !== 'undefined' && kitpaymentData.apiKey) {
                 body.append('api_key', kitpaymentData.apiKey);
@@ -839,8 +858,22 @@ class woocart {
             isVariable = $(this).closest('.product').find('.product_variant .variation-options').length > 0;
             
             if (isVariable) {
-                //必须选择一个变量选项 input元素
-                var selectedVariation = $(this).closest('.product').find('.product_variant, .variation-options').find('input:checked');
+                var $productWrapper = $(this).closest('.product');
+                
+                // 检查所有属性是否都已选择
+                // 获取所有属性组的数量
+                var filterListCount = $productWrapper.find('.product_variant .filter__list').length;
+                // 获取已选择属性的数量（li.active）
+                var activeCount = $productWrapper.find('.product_variant li.active').length;
+                
+                // 如果属性组数量和已选择数量不匹配，说明还有属性未选择
+                if (filterListCount > 0 && activeCount !== filterListCount) {
+                    alert('Please select all product attributes before adding to cart.');
+                    return false;
+                }
+                
+                // 如果所有属性都已选择，获取选中的变量选项
+                var selectedVariation = $productWrapper.find('.product_variant, .variation-options').find('input:checked');
                 if (!selectedVariation.length) {
                     alert('Please select a variation option');
                     return false;

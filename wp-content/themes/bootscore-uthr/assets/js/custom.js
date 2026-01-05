@@ -1193,25 +1193,79 @@
         var $variationForm = $('.product_variant');
         if (!$variationForm.length) return;
         
+        // 保存原始价格HTML（价格区间）- 在页面加载时保存
+        var $priceBox = $('.price_box');
+        if ($priceBox.length) {
+            // 如果data属性中没有，从HTML内容或data属性中获取
+            var originalPrice = $priceBox.data('original-price');
+            if (!originalPrice || originalPrice === '') {
+                // 从HTML内容保存
+                $priceBox.data('original-price', $priceBox.html());
+            }
+        }
+        
+        // 监听WooCommerce的found_variation事件，更新价格显示
+        $(document.body).on('found_variation', function(event, variation) {
+            updateVariationPrice(variation);
+        });
+        
+        // 监听WooCommerce的reset_data事件，恢复原始价格
+        $(document.body).on('reset_data', function() {
+            resetVariationPrice();
+        });
+        
         // 处理颜色选择（radio button）
         $(document).on('change', '.variation-options.color-options input[type="radio"]', function() {
             var $input = $(this);
+            var $button = $input.siblings('.variation-button');
             var $listItem = $input.closest('li');
-            // 移除其他选中状态
+            // 移除同一组其他选中状态
             $input.closest('ul').find('li').removeClass('active');
+            $input.closest('ul').find('.variation-button').removeClass('active');
+            // 添加选中状态
             $listItem.addClass('active');
+            $button.addClass('active');
             updateVariationSelection();
         });
         
         // 处理尺寸等其他属性选择（链接点击）
-        $(document).on('click', '.variation-options a.variation-option', function(e) {
+        $(document).on('click', '.variation-options a.variation-option, .variation-options .variation-button', function(e) {
             e.preventDefault();
-            var $link = $(this);
-            var $listItem = $link.closest('li');
-            // 移除同一组其他选中状态
-            $link.closest('ul').find('li').removeClass('active');
-            $listItem.addClass('active');
+            var $button = $(this);
+            var $listItem = $button.closest('li');
+            // 如果点击的是已选中的项，取消选择
+            if ($listItem.hasClass('active')) {
+                $listItem.removeClass('active');
+                $button.removeClass('active');
+                // 如果是radio，取消选中
+                $listItem.find('input[type="radio"]').prop('checked', false);
+            } else {
+                // 移除同一组其他选中状态
+                $button.closest('ul').find('li').removeClass('active');
+                $button.closest('ul').find('.variation-button').removeClass('active');
+                $button.closest('ul').find('input[type="radio"]').prop('checked', false);
+                // 添加选中状态
+                $listItem.addClass('active');
+                $button.addClass('active');
+                // 如果是radio，选中它
+                var $radio = $listItem.find('input[type="radio"]');
+                if ($radio.length) {
+                    $radio.prop('checked', true).trigger('change');
+                }
+            }
             updateVariationSelection();
+        });
+        
+        // 处理清除变体选择（如果有清除按钮）
+        $(document).on('click', '.reset_variations', function(e) {
+            e.preventDefault();
+            // 清除所有选择
+            $('.variation-options li').removeClass('active');
+            $('.variation-options .variation-button').removeClass('active');
+            $('.variation-options input[type="radio"]').prop('checked', false);
+            $('.variation_id').val(0);
+            // 恢复原始价格
+            resetVariationPrice();
         });
         
         // 更新变体选择
@@ -1227,10 +1281,13 @@
                 if ($selected.length) {
                     var attributeName = $selected.find('[data-attribute_name]').data('attribute_name') || 
                                        $selected.find('input').attr('name') ||
-                                       $selected.find('.variation-option').data('attribute_name');
+                                       $selected.find('.variation-option').data('attribute_name') ||
+                                       $selected.find('.variation-button').data('attribute_name');
                     var value = $selected.find('input').val() || 
                                $selected.find('.variation-option').data('value') ||
-                               $selected.find('.variation-option').text().trim();
+                               $selected.find('.variation-button').data('value') ||
+                               $selected.find('.variation-option').text().trim() ||
+                               $selected.find('.variation-button').text().trim();
                     
                     if (attributeName && value) {
                         // 移除 attribute_ 前缀（如果有）
@@ -1244,15 +1301,17 @@
             
             // 如果有变体商品数据，尝试找到匹配的变体
             if (allSelected && Object.keys(selectedAttributes).length > 0) {
-                findMatchingVariation(selectedAttributes);
+                findMatchingVariation(selectedAttributes, true);
             } else {
                 // 重置变体ID
                 $('.variation_id').val(0);
+                // 恢复原始价格显示
+                resetVariationPrice();
             }
         }
         
         // 查找匹配的变体（需要WooCommerce变体数据）
-        function findMatchingVariation(attributes) {
+        function findMatchingVariation(attributes, allSelected) {
             var productId = $('.custom-add-to-cart').data('product-id');
             if (!productId) return;
             
@@ -1295,9 +1354,17 @@
                         $('.variation_id').val(variation.variation_id);
                         // 触发WooCommerce的变体找到事件
                         $('body').trigger('found_variation', [variation]);
+                        // 直接更新价格（不需要等待事件）
+                        updateVariationPrice(variation);
                         return;
                     }
                 }
+            }
+            
+            // 如果找不到匹配的变体，恢复原始价格显示
+            if (!allSelected) {
+                resetVariationPrice();
+                return;
             }
             
             // 如果找不到，使用AJAX查询
@@ -1314,9 +1381,83 @@
                 success: function(response) {
                     if (response.success && response.data.variation_id) {
                         $('.variation_id').val(response.data.variation_id);
+                        // 如果AJAX返回了变体ID，尝试从变体数据中获取价格
+                        var variationId = response.data.variation_id;
+                        var variations = null;
+                        if (typeof window.uthrProductVariations !== 'undefined' && window.uthrProductVariations[productId]) {
+                            variations = window.uthrProductVariations[productId];
+                            for (var i = 0; i < variations.length; i++) {
+                                if (variations[i].variation_id == variationId) {
+                                    updateVariationPrice(variations[i]);
+                                    break;
+                                }
+                            }
+                        }
+                    } else {
+                        resetVariationPrice();
                     }
+                },
+                error: function() {
+                    resetVariationPrice();
                 }
             });
+        }
+        
+        // 更新变体价格显示
+        function updateVariationPrice(variation) {
+            var $priceBox = $('.price_box');
+            if (!$priceBox.length) return;
+            
+            // 从变体数据中获取价格HTML（WooCommerce变体数据通常包含price_html）
+            if (variation && variation.price_html) {
+                // 直接使用WooCommerce生成的价格HTML
+                $priceBox.html(variation.price_html);
+            } else if (variation && variation.display_price !== undefined) {
+                // 如果没有price_html，手动构建价格显示
+                var priceHtml = '';
+                var currentPrice = variation.display_price;
+                var regularPrice = variation.display_regular_price;
+                
+                // 检查是否有促销价
+                if (regularPrice && currentPrice !== regularPrice && parseFloat(currentPrice) < parseFloat(regularPrice)) {
+                    // 有促销价，显示促销价和原价
+                    // 使用WooCommerce的格式化函数（如果可用）
+                    if (typeof wc_add_to_cart_params !== 'undefined' && wc_add_to_cart_params.currency_format_symbol) {
+                        var formattedCurrent = wc_add_to_cart_params.currency_format_symbol.replace('%s', parseFloat(currentPrice).toFixed(2));
+                        var formattedRegular = wc_add_to_cart_params.currency_format_symbol.replace('%s', parseFloat(regularPrice).toFixed(2));
+                        priceHtml = '<span class="current_price"><ins>' + formattedCurrent + '</ins></span>';
+                        priceHtml += '<span class="old_price"><del>' + formattedRegular + '</del></span>';
+                    } else {
+                        // 简单的价格格式
+                        priceHtml = '<span class="current_price"><ins>$' + parseFloat(currentPrice).toFixed(2) + '</ins></span>';
+                        priceHtml += '<span class="old_price"><del>$' + parseFloat(regularPrice).toFixed(2) + '</del></span>';
+                    }
+                } else {
+                    // 普通价格
+                    if (typeof wc_add_to_cart_params !== 'undefined' && wc_add_to_cart_params.currency_format_symbol) {
+                        var formattedPrice = wc_add_to_cart_params.currency_format_symbol.replace('%s', parseFloat(currentPrice).toFixed(2));
+                        priceHtml = '<span class="current_price">' + formattedPrice + '</span>';
+                    } else {
+                        priceHtml = '<span class="current_price">$' + parseFloat(currentPrice).toFixed(2) + '</span>';
+                    }
+                }
+                $priceBox.html(priceHtml);
+            }
+        }
+        
+        // 恢复原始价格显示（价格区间）
+        function resetVariationPrice() {
+            var $priceBox = $('.price_box');
+            if (!$priceBox.length) return;
+            
+            // 从data属性或原始内容恢复
+            var originalPrice = $priceBox.data('original-price');
+            if (originalPrice) {
+                $priceBox.html(originalPrice);
+            } else {
+                // 如果没有保存的原始价格，尝试从页面加载时的内容恢复
+                // 这需要页面加载时保存
+            }
         }
     }
 
