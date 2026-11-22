@@ -1,7 +1,7 @@
 @font-face {
   font-family: 'simple-line-icons';
-  src: url('wp-content/themes/bootscore-uthr/assets../fonts/Simple-Line-Icons.eot');
-  src: url('wp-content/themes/bootscore-uthr/assets../fonts/Simple-Line-Icons.eot') format('embedded-opentype'), url('wp-content/themes/bootscore-uthr/assets../fonts/Simple-Line-Icons.woff2') format('woff2'), url('wp-content/themes/bootscore-uthr/assets../fonts/Simple-Line-Icons.ttf') format('truetype'), url('wp-content/themes/bootscore-uthr/assets../fonts/Simple-Line-Icons.woff') format('woff'), url('wp-content/themes/bootscore-uthr/assets../fonts/Simple-Line-Icons.svg') format('svg');
+  src: url('../fonts/Simple-Line-Icons.eot');
+  src: url('../fonts/Simple-Line-Icons.eot') format('embedded-opentype'), url('../fonts/Simple-Line-Icons.woff2') format('woff2'), url('../fonts/Simple-Line-Icons.ttf') format('truetype'), url('../fonts/Simple-Line-Icons.woff') format('woff'), url('../fonts/Simple-Line-Icons.svg') format('svg');
   font-weight: normal;
   font-style: normal;
 }
