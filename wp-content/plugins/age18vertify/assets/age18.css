@@ -1,0 +1,215 @@
+/**
+ * Age 18 Verify — front-end only 18+ overlay styles
+ * Nothing here applies until the script creates the overlay.
+ */
+
+/* Lock page scrolling while the gate is open */
+html.age18-lock,
+html.age18-lock body {
+	overflow: hidden;
+}
+
+/* Full-screen frosted glass layer */
+.age18-overlay {
+	/* Button color follows the site: WP preset primary → accent → neutral */
+	--age18-primary: var(--wp--preset--color--primary, var(--wp--preset--color--accent, #111827));
+	--age18-primary-text: var(--wp--preset--color--base, #ffffff);
+
+	position: fixed;
+	inset: 0;
+	z-index: 999999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	padding: 20px;
+	overflow-y: auto;
+	background: rgba(15, 23, 42, 0.42);
+	-webkit-backdrop-filter: blur(16px);
+	backdrop-filter: blur(16px);
+}
+
+/* Translucent card with a second blur layer for depth */
+.age18-overlay .age18-card {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 400px;
+	margin: auto;
+	padding: 30px 28px 24px;
+	border: 1px solid rgba(255, 255, 255, 0.6);
+	border-radius: 20px;
+	background: rgba(255, 255, 255, 0.82);
+	-webkit-backdrop-filter: blur(24px);
+	backdrop-filter: blur(24px);
+	box-shadow: 0 24px 64px -24px rgba(15, 23, 42, 0.5);
+	color: #111827;
+	font-family: inherit;
+	font-size: 15px;
+	line-height: 1.6;
+	text-align: center;
+	outline: none;
+}
+
+.age18-overlay .age18-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 58px;
+	height: 58px;
+	margin-bottom: 14px;
+	border-radius: 50%;
+	background: var(--age18-primary);
+	color: var(--age18-primary-text);
+	font-size: 17px;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.age18-overlay .age18-title {
+	margin: 0 0 10px;
+	padding: 0;
+	border: 0;
+	color: inherit;
+	font-family: inherit;
+	font-size: 20px;
+	font-weight: 700;
+	line-height: 1.4;
+	text-transform: none;
+}
+
+.age18-overlay .age18-text {
+	margin: 0 0 22px;
+	padding: 0;
+	color: rgba(17, 24, 39, 0.72);
+	font-size: 14.5px;
+	line-height: 1.7;
+	text-wrap: balance;
+}
+
+/* Buttons: reset theme defaults, then rebuild */
+.age18-overlay .age18-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 46px;
+	margin: 0 0 10px;
+	padding: 12px 18px;
+	border: 1px solid transparent;
+	border-radius: 12px;
+	background: none;
+	box-shadow: none;
+	color: inherit;
+	font-family: inherit;
+	font-size: 15px;
+	font-weight: 600;
+	line-height: 1.2;
+	text-align: center;
+	text-decoration: none;
+	cursor: pointer;
+	-webkit-appearance: none;
+	appearance: none;
+	transition: opacity 0.15s ease, background-color 0.15s ease;
+}
+
+.age18-overlay .age18-btn:last-of-type {
+	margin-bottom: 0;
+}
+
+.age18-overlay .age18-btn--primary {
+	background: var(--age18-primary);
+	color: var(--age18-primary-text);
+}
+
+.age18-overlay .age18-btn--primary:hover {
+	opacity: 0.9;
+}
+
+.age18-overlay .age18-btn--ghost {
+	border-color: rgba(17, 24, 39, 0.18);
+	color: rgba(17, 24, 39, 0.72);
+}
+
+.age18-overlay .age18-btn--ghost:hover {
+	background: rgba(17, 24, 39, 0.05);
+}
+
+.age18-overlay .age18-btn:focus-visible {
+	outline: 2px solid var(--age18-primary);
+	outline-offset: 2px;
+}
+
+.age18-overlay .age18-denied {
+	margin: 0;
+	padding: 12px 14px;
+	border-radius: 10px;
+	background: rgba(17, 24, 39, 0.06);
+	color: rgba(17, 24, 39, 0.8);
+	font-size: 14px;
+	line-height: 1.6;
+}
+
+/* Keep the hidden attribute stronger than the display rules above */
+.age18-overlay [hidden] {
+	display: none !important;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+	.age18-overlay {
+		--age18-primary: var(--wp--preset--color--primary, var(--wp--preset--color--accent, #f4f4f5));
+		--age18-primary-text: var(--wp--preset--color--base, #111827);
+		background: rgba(2, 6, 23, 0.55);
+	}
+
+	.age18-overlay .age18-card {
+		border-color: rgba(255, 255, 255, 0.12);
+		background: rgba(24, 24, 27, 0.82);
+		color: #f4f4f5;
+	}
+
+	.age18-overlay .age18-text {
+		color: rgba(244, 244, 245, 0.76);
+	}
+
+	.age18-overlay .age18-btn--ghost {
+		border-color: rgba(255, 255, 255, 0.22);
+		color: rgba(244, 244, 245, 0.8);
+	}
+
+	.age18-overlay .age18-btn--ghost:hover {
+		background: rgba(255, 255, 255, 0.08);
+	}
+
+	.age18-overlay .age18-denied {
+		background: rgba(255, 255, 255, 0.08);
+		color: rgba(244, 244, 245, 0.82);
+	}
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+	.age18-overlay {
+		padding: 16px;
+	}
+
+	.age18-overlay .age18-card {
+		padding: 26px 20px 20px;
+		border-radius: 16px;
+	}
+
+	.age18-overlay .age18-title {
+		font-size: 18px;
+	}
+
+	.age18-overlay .age18-text {
+		font-size: 14px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.age18-overlay .age18-btn {
+		transition: none;
+	}
+}
