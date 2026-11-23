@@ -3,20 +3,71 @@
  *
  * The overlay is created entirely by this script, so the page HTML stays clean
  * and crawlers that don't execute JavaScript see the original content.
+ *
+ * Copy and colors come from Settings → Age 18 Verify. The defaults below are
+ * only used when a field was left empty in the admin.
  */
 
 (function () {
 	'use strict';
 
-	// ===== Edit the copy here =====
+	// Settings passed in by WordPress as window.age18vertifyConfig.
+	var CONFIG = window.age18vertifyConfig || {};
+
+	// Use the saved value when it is a non-empty string, otherwise the default.
+	function setting(key, fallback) {
+		var value = CONFIG[key];
+
+		return ('string' === typeof value && '' !== value.trim()) ? value : fallback;
+	}
+
+	// Escape text before it is inserted as HTML.
+	function escapeHtml(value) {
+		return String(value).replace(/[&<>"']/g, function (char) {
+			return {
+				'&': '&amp;',
+				'<': '&lt;',
+				'>': '&gt;',
+				'"': '&quot;',
+				"'": '&#39;'
+			}[char];
+		});
+	}
+
+	// Pick black or white text for a given hex background.
+	function readableText(hex) {
+		var h = String(hex || '').replace('#', '');
+
+		if (3 === h.length) {
+			h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
+		}
+		if (6 !== h.length) {
+			return '#ffffff';
+		}
+
+		var r = parseInt(h.substr(0, 2), 16);
+		var g = parseInt(h.substr(2, 2), 16);
+		var b = parseInt(h.substr(4, 2), 16);
+
+		if (isNaN(r) || isNaN(g) || isNaN(b)) {
+			return '#ffffff';
+		}
+
+		return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#111827' : '#ffffff';
+	}
+
 	var TEXT = {
-		badge: '18+',
-		title: 'Are you 18 or older?',
-		desc: 'This site contains content intended for adults only. Please confirm that you are at least 18 years old.',
-		confirm: 'Yes, I am 18 or older',
-		decline: 'No, I am under 18',
-		denied: 'Sorry, you must be at least 18 years old to view this site.'
+		badge: escapeHtml(setting('badge', '18+')),
+		title: escapeHtml(setting('title', 'Are you 18 or older?')),
+		desc: escapeHtml(setting('desc', 'This site contains content intended for adults only. Please confirm that you are at least 18 years old.')),
+		confirm: escapeHtml(setting('confirm', 'Yes, I am 18 or older')),
+		decline: escapeHtml(setting('decline', 'No, I am under 18')),
+		denied: escapeHtml(setting('denied', 'Sorry, you must be at least 18 years old to view this site.'))
 	};
+
+	// Empty color = the stylesheet's theme color. Empty text color = automatic.
+	var COLOR = setting('color', '');
+	var COLOR_TEXT = setting('colorText', '');
 
 	// Storage key. Change it to make returning visitors see the gate once more.
 	var KEY = 'age18_verified';
@@ -53,6 +104,16 @@
 		'</div>';
 
 	document.body.appendChild(overlay);
+
+	// Inline custom properties win over the stylesheet, but a theme rule with
+	// !important can still override them.
+	if (COLOR) {
+		overlay.style.setProperty('--age18-primary', COLOR);
+		overlay.style.setProperty('--age18-primary-text', COLOR_TEXT || readableText(COLOR));
+	} else if (COLOR_TEXT) {
+		overlay.style.setProperty('--age18-primary-text', COLOR_TEXT);
+	}
+
 	document.documentElement.classList.add('age18-lock');
 
 	var card = overlay.querySelector('.age18-card');
